@@ -1,0 +1,7 @@
+tests.hxml
+-js bin/node/tests.js
+
+-lib travix
+-lib tink_http_fetch
+-lib tink_unittest
+-lib hxnodejs
