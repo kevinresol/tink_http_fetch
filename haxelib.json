@@ -1,6 +1,7 @@
 {
   "name": "tink_http_fetch",
   "license": "MIT",
+  "description": "A fetch-like API based on tink_http",
   "tags": [
     "cross",
     "http",
