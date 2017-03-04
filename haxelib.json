@@ -1,19 +1,19 @@
 {
-  "name": "tink_http_fetch",
-  "license": "MIT",
-  "description": "A fetch-like API based on tink_http",
-  "tags": [
-    "cross",
-    "http",
-    "fetch"
-  ],
-  "classPath": "src",
-  "contributors": [
-    "kevinresol"
-  ],
-  "releasenote": "initial release",
-  "version": "0.0.0",
-  "dependencies": {
-    "tink_http": ""
-  }
+	"name": "tink_http_fetch",
+	"license": "MIT",
+	"tags": [
+		"cross",
+		"http",
+		"fetch"
+	],
+	"classPath": "src",
+	"description": "A fetch-like API based on tink_http",
+	"contributors": [
+		"kevinresol"
+	],
+	"releasenote": "Initial release",
+	"version": "0.1.0",
+	"dependencies": {
+		"tink_http": ""
+	}
 }
