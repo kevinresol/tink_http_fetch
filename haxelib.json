@@ -11,8 +11,8 @@
 	"contributors": [
 		"kevinresol"
 	],
-	"releasenote": "Initial release",
-	"version": "0.1.0",
+	"releasenote": "Fix return type & use PhpClient on php",
+	"version": "0.1.1",
 	"dependencies": {
 		"tink_http": ""
 	}
