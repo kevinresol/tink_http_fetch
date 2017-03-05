@@ -13,14 +13,13 @@ using tink.CoreApi;
 
 class Fetch {
 	
-	static var client(get, null):Client;
-	static var sclient(get, null):Client;
+	static var client = new Map<ClientType, Client>();
+	static var sclient = new Map<ClientType, Client>();
 	
 	public static function fetch(url:Url, ?options:FetchOptions):Future<IncomingResponse> {
 		
 		return Future.async(function(cb) {
 			
-			var client = url.scheme == 'https' ? sclient : client;
 			
 			var uri:String = url.path;
 			if(url.query != null) uri += '?' + url.query;
@@ -28,13 +27,16 @@ class Fetch {
 			var method = GET;
 			var headers = null;
 			var body:IdealSource = Empty.instance;
+			var type = Default;
 			
 			if(options != null) {
 				if(options.method != null) method = options.method;
 				if(options.headers != null) headers = options.headers;
 				if(options.body != null) body = options.body;
+				if(options.client != null) type = options.client; 
 			}
 			
+			var client = getClient(type, url.scheme == 'https');
 			client.request(new OutgoingRequest(
 				new OutgoingRequestHeader(method, url.host, uri, headers),
 				body
@@ -49,25 +51,36 @@ class Fetch {
 		});
 	}
 	
-	static function get_client() {
-		if(client == null) client =
-			#if (js && !nodejs) new JsClient()
-			#elseif nodejs new NodeClient()
-			#elseif php new PhpClient()
-			#elseif sys new StdClient()
-			#end ;
-		return client;
-	}
+	static function getClient(type:ClientType, secure:Bool) {
+		var cache = secure ? sclient : client;
 		
-	static function get_sclient() {
-		if(sclient == null) sclient =
-			#if (js && !nodejs) new JsSecureClient()
-			#elseif nodejs new NodeSecureClient()
-			#elseif php new SecurePhpClient()
-			#elseif sys new SecureStdClient()
-			#end ;
+		if(!cache.exists(type)) {
 			
-		return sclient;
+			var c:Client = switch type {
+				case Default:
+					if(secure)
+						#if (js && !nodejs) new JsSecureClient()
+						#elseif nodejs new NodeSecureClient()
+						#elseif php new SecurePhpClient()
+						#elseif sys new SecureStdClient()
+						#end
+					else 
+						#if (js && !nodejs) new JsClient()
+						#elseif nodejs new NodeClient()
+						#elseif php new PhpClient()
+						#elseif sys new StdClient()
+						#end ;
+				case Local(c): new LocalContainerClient(c);
+				case Curl: secure ? new SecureCurlClient() : new CurlClient();
+				#if (js || php) case Std: secure ? new SecureStdClient() : new StdClient(); #end
+				#if tink_tcp case Tcp: secure ? new SecureTcpClient() : new TcpClient(); #end
+			}
+			
+			cache.set(type, c);
+		}
+		
+		return cache.get(type);
+		
 	}
 }
 
@@ -75,4 +88,13 @@ typedef FetchOptions = {
 	?method:Method,
 	?headers:Array<HeaderField>,
 	?body:IdealSource,
+	?client:ClientType,
+}
+
+enum ClientType {
+	Default;
+	Local(container:tink.http.containers.LocalContainer);
+	Curl;
+	#if (js || php) Std; #end
+	#if tink_tcp Tcp; #end
 }
