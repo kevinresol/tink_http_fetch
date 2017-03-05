@@ -16,7 +16,7 @@ class Fetch {
 	static var client(get, null):Client;
 	static var sclient(get, null):Client;
 	
-	public static function fetch(url:Url, ?options:FetchOptions) {
+	public static function fetch(url:Url, ?options:FetchOptions):Future<IncomingResponse> {
 		
 		return Future.async(function(cb) {
 			
@@ -53,6 +53,7 @@ class Fetch {
 		if(client == null) client =
 			#if (js && !nodejs) new JsClient()
 			#elseif nodejs new NodeClient()
+			#elseif php new PhpClient()
 			#elseif sys new StdClient()
 			#end ;
 		return client;
@@ -62,6 +63,7 @@ class Fetch {
 		if(sclient == null) sclient =
 			#if (js && !nodejs) new JsSecureClient()
 			#elseif nodejs new NodeSecureClient()
+			#elseif php new SecurePhpClient()
 			#elseif sys new SecureStdClient()
 			#end ;
 			
