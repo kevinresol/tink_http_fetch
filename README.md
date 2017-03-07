@@ -13,5 +13,6 @@ typedef FetchOptions = {
 	?method:Method,
 	?headers:Array<HeaderField>,
 	?body:IdealSource,
+	?client:ClientType,
 }
 ```
