@@ -32,7 +32,7 @@ class RunTests {
   public function testPut() return testData('http://httpbin.org/put', PUT);
   public function testRedirect() return testStatus('http://httpbin.org/redirect/5');
   
-  #if(!python && !cs)
+  #if(!python && !cs && !interp)
   public function testSecureGet() return testStatus('https://httpbin.org/');
   public function testSecurePost() return testData('https://httpbin.org/post', POST);
   public function testSecureDelete() return testData('https://httpbin.org/delete', DELETE);
