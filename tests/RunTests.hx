@@ -6,7 +6,9 @@ import tink.unit.TestRunner;
 import tink.unit.Assert.*;
 import tink.http.Fetch.*;
 import tink.http.Response;
+import tink.http.Header;
 
+using haxe.Json;
 using tink.CoreApi;
 
 class RunTests {
@@ -22,32 +24,46 @@ class RunTests {
   public function new() {}
   
   public function testGet() {
-    return fetch('http://example.com/').map(function(res) return equals(200, res.header.statusCode));
+    return fetch('http://httpbin.org/').map(function(res) return equals(200, res.header.statusCode));
   }
   
   public function testSecureGet() {
-    return fetch('https://example.com/').map(function(res) return equals(200, res.header.statusCode));
+    // make sure original operator overloads work
+    return fetch('https://httpbin.org/').asFuture() >> function(res:IncomingResponse) return equals(200, res.header.statusCode);
   }
   
   public function testHeaders() {
     var name = 'my-sample-header';
     var value = 'foobar';
-    return fetch('https://postman-echo.com/headers', {
+    return fetch('https://httpbin.org/headers', {
       headers:[{name: name, value: value}],
-    }) >> 
-      function(res:IncomingResponse) return res.body.all() >>
-      function(bytes:Bytes) return equals(200, res.header.statusCode) && equals(value, Reflect.field(Json.parse(bytes.toString()).headers, name));
+    }).all().next(
+      function(res) 
+        return equals(200, res.header.statusCode) && 
+          objectToHeader(res.body.toString().parse().headers).byName(name).flatMap(function(v) return equals(value, v))
+    );
+  }
+  
+  public function testPost() {
+    var body = 'Hello, World!';
+    return fetch('http://httpbin.org/post', {
+      method: POST,
+      headers:[{name: 'content-type', value: 'text/plain'}],
+      body: body,
+    }).all().next(function(res) return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data));
   }
   
   public function testSecurePost() {
     var body = 'Hello, World!';
-    return fetch('https://postman-echo.com/post', {
+    return fetch('https://httpbin.org/post', {
       method: POST,
       headers:[{name: 'content-type', value: 'text/plain'}],
       body: body,
-    }) >> 
-      function(res:IncomingResponse) return res.body.all() >>
-      function(bytes:Bytes) return equals(200, res.header.statusCode) && equals(body, Json.parse(bytes.toString()).data);
+    }).all().next(function(res) return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data));
+  }
+  
+  function objectToHeader(obj:Dynamic) {
+    return new Header([for(key in Reflect.fields(obj)) new HeaderField(key, Reflect.field(obj, key))]);
   }
   
 }

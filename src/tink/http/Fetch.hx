@@ -1,5 +1,6 @@
 package tink.http;
 
+import haxe.io.Bytes;
 import tink.http.Request;
 import tink.http.Response;
 import tink.http.Header;
@@ -16,7 +17,7 @@ class Fetch {
 	static var client = new Map<ClientType, Client>();
 	static var sclient = new Map<ClientType, Client>();
 	
-	public static function fetch(url:Url, ?options:FetchOptions):Future<IncomingResponse> {
+	public static function fetch(url:Url, ?options:FetchOptions):FetchResponse {
 		
 		return Future.async(function(cb) {
 			
@@ -97,4 +98,26 @@ enum ClientType {
 	Curl;
 	#if (js || php) Std; #end
 	#if tink_tcp Tcp; #end
+}
+
+@:forward
+abstract FetchResponse(Future<IncomingResponse>) from Future<IncomingResponse> to Future<IncomingResponse> {
+	public function all():Promise<CompleteResponse> {
+		return this >> 
+			function(res:IncomingResponse) return res.body.all() >>
+			function(bytes:Bytes) return new CompleteResponse(res.header, bytes);
+	}
+	
+	public function asFuture():Future<IncomingResponse>
+		return this;
+}
+
+class CompleteResponse {
+	public var header:ResponseHeader;
+	public var body:Bytes;
+	
+	public function new(header, body) {
+		this.header = header;
+		this.body = body;
+	}
 }
