@@ -26,29 +26,35 @@ class RunTests {
   public function new() {}
   
   public function testGet() return testStatus('http://httpbin.org/');
-  public function testSecureGet() return testStatus('https://httpbin.org/');
   public function testPost() return testData('http://httpbin.org/post', POST);
-  public function testSecurePost() return testData('https://httpbin.org/post', POST);
   public function testDelete() return testData('http://httpbin.org/delete', DELETE);
-  public function testSecureDelete() return testData('https://httpbin.org/delete', DELETE);
   public function testPatch() return testData('http://httpbin.org/patch', PATCH);
-  public function testSecurePatch() return testData('https://httpbin.org/patch', PATCH);
   public function testPut() return testData('http://httpbin.org/put', PUT);
-  public function testSecurePut() return testData('https://httpbin.org/put', PUT);
   public function testRedirect() return testStatus('http://httpbin.org/redirect/5');
+  
+  #if(!python && !cs)
+  public function testSecureGet() return testStatus('https://httpbin.org/');
+  public function testSecurePost() return testData('https://httpbin.org/post', POST);
+  public function testSecureDelete() return testData('https://httpbin.org/delete', DELETE);
+  public function testSecurePatch() return testData('https://httpbin.org/patch', PATCH);
+  public function testSecurePut() return testData('https://httpbin.org/put', PUT);
   public function testSecureRedirect() return testStatus('https://httpbin.org/redirect/5');
   
   public function testHeaders() {
     var name = 'my-sample-header';
     var value = 'foobar';
     return fetch('https://httpbin.org/headers', {
-      headers:[{name: name, value: value}],
+      headers:[
+        // {name: name, value: value},
+        new HeaderField(name, value),
+      ],
     }).all().next(
       function(res) 
         return equals(200, res.header.statusCode) && 
           objectToHeader(res.body.toString().parse().headers).byName(name).flatMap(function(v) return equals(value, v))
     );
   }
+  #end
   
   function testStatus(url:String, status = 200) {
     return fetch(url).map(function(res) return equals(status, res.header.statusCode));
@@ -59,8 +65,10 @@ class RunTests {
     return fetch(url, {
       method: method,
       headers:[
-        {name: 'content-type', value: 'text/plain'},
-        {name: 'content-length', value: Std.string(body.length)},
+        // {name: 'content-type', value: 'text/plain'},
+        // {name: 'content-length', value: Std.string(body.length)},
+        new HeaderField('content-type', 'text/plain'),
+        new HeaderField('content-length', Std.string(body.length)),
       ],
       body: body,
     }).all().next(function(res) {

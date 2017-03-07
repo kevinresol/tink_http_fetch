@@ -125,14 +125,16 @@ class CompleteResponse {
 class SecureSocketClient extends SocketClient {
 	public function new(?worker:Worker) {
 		super(worker);
-		protocol = 'https';
+		secure = true;
 	}
 }
 
 // TODO: move to tink_http
 class SocketClient implements tink.http.Client.ClientObject {
+	
 	var worker:Worker;
-	var protocol:String = 'http';
+	var secure = false;
+	
 	public function new(?worker:Worker) {
 		this.worker = worker.ensure();
 	}
@@ -141,7 +143,6 @@ class SocketClient implements tink.http.Client.ClientObject {
 		
 		return Future.async(function(cb) {
 			
-			var secure = protocol == 'https';
 			var socket = 
 				if(secure)
 					#if php new php.net.SslSocket();
@@ -152,17 +153,27 @@ class SocketClient implements tink.http.Client.ClientObject {
 				else
 					new sys.net.Socket();
 				
-			var sink = tink.io.Sink.ofOutput('Output', socket.output);
-			var source = tink.io.Source.ofInput('Input', socket.input);
 			var port = switch req.header.host.port {
 				case null: secure ? 443 : 80;
 				case v: v;
 			}
-			socket.connect(new sys.net.Host(req.header.host.name), port);
+			socket.connect(new sys.net.Host(req.header.host.name), port); // TODO: wrap in worker
+			var sink = tink.io.Sink.ofOutput('Output', socket.output);
+			var source = tink.io.Source.ofInput('Input', socket.input);
+			
+			switch req.header.byName('connection') {
+				case Success((_:String).toLowerCase() => 'close'): // ok
+				case Success(_):
+					cb(new IncomingResponse(
+						new ResponseHeader(500, 'Unsupported Connection Type', []),
+						'Only "Connection: Close" is supported'
+					));
+					return;
+				case Failure(_): req.header.fields.push(new HeaderField('connection', 'close'));
+			}
 			
 			var data:tink.io.Source = req.header.toString();
 			data = data.append(req.body);
-			data = data.append(' '); // HACK: otherwise the server won't respond?
 			
 			data.pipeTo(sink).map(function(r) {
 				switch r {
