@@ -7,10 +7,12 @@ import tink.unit.Assert.*;
 import tink.http.Fetch.*;
 import tink.http.Response;
 import tink.http.Header;
+import tink.http.Method;
 
 using haxe.Json;
 using tink.CoreApi;
 
+@:timeout(10000)
 class RunTests {
 
   static function main() {
@@ -23,14 +25,18 @@ class RunTests {
   
   public function new() {}
   
-  public function testGet() {
-    return fetch('http://httpbin.org/').map(function(res) return equals(200, res.header.statusCode));
-  }
-  
-  public function testSecureGet() {
-    // make sure original operator overloads work
-    return fetch('https://httpbin.org/').asFuture() >> function(res:IncomingResponse) return equals(200, res.header.statusCode);
-  }
+  public function testGet() return testStatus('http://httpbin.org/');
+  public function testSecureGet() return testStatus('https://httpbin.org/');
+  public function testPost() return testData('https://httpbin.org/post', POST);
+  public function testSecurePost() return testData('https://httpbin.org/post', POST);
+  public function testDelete() return testData('https://httpbin.org/delete', DELETE);
+  public function testSecureDelete() return testData('https://httpbin.org/delete', DELETE);
+  public function testPatch() return testData('https://httpbin.org/patch', PATCH);
+  public function testSecurePatch() return testData('https://httpbin.org/patch', PATCH);
+  public function testPut() return testData('https://httpbin.org/put', PUT);
+  public function testSecurePut() return testData('https://httpbin.org/put', PUT);
+  public function testRedirect() return testStatus('http://httpbin.org/redirect/5');
+  public function testSecureRedirect() return testStatus('https://httpbin.org/redirect/5');
   
   public function testHeaders() {
     var name = 'my-sample-header';
@@ -44,20 +50,18 @@ class RunTests {
     );
   }
   
-  public function testPost() {
-    var body = 'Hello, World!';
-    return fetch('http://httpbin.org/post', {
-      method: POST,
-      headers:[{name: 'content-type', value: 'text/plain'}],
-      body: body,
-    }).all().next(function(res) return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data));
+  function testStatus(url:String, status = 200) {
+    return fetch(url).map(function(res) return equals(status, res.header.statusCode));
   }
   
-  public function testSecurePost() {
+  function testData(url:String, method:Method) {
     var body = 'Hello, World!';
-    return fetch('https://httpbin.org/post', {
-      method: POST,
-      headers:[{name: 'content-type', value: 'text/plain'}],
+    return fetch(url, {
+      method: method,
+      headers:[
+        {name: 'content-type', value: 'text/plain'},
+        {name: 'content-length', value: Std.string(body.length)},
+      ],
       body: body,
     }).all().next(function(res) return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data));
   }

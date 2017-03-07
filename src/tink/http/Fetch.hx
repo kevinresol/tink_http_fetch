@@ -21,7 +21,6 @@ class Fetch {
 		
 		return Future.async(function(cb) {
 			
-			
 			var uri:String = url.path;
 			if(url.query != null) uri += '?' + url.query;
 			
@@ -43,12 +42,11 @@ class Fetch {
 				body
 			)).handle(function(res) {
 				switch res.header.statusCode {
-					case 301 | 302: fetch(res.header.byName('location').sure(), options).handle(cb); // TODO: reconstruct body
+					case 301 | 302: fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: reconstruct body
 					// TODO: case 307 | 308: 
 					default: cb(res);
 				}
 			});
-			
 		});
 	}
 	
