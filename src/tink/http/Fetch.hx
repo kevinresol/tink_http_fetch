@@ -157,48 +157,49 @@ class SocketClient implements tink.http.Client.ClientObject {
 				case null: secure ? 443 : 80;
 				case v: v;
 			}
-			socket.connect(new sys.net.Host(req.header.host.name), port); // TODO: wrap in worker
-			var sink = tink.io.Sink.ofOutput('Output', socket.output);
-			var source = tink.io.Source.ofInput('Input', socket.input);
 			
-			switch req.header.byName('connection') {
-				case Success((_:String).toLowerCase() => 'close'): // ok
-				case Success(_):
-					cb(new IncomingResponse(
-						new ResponseHeader(500, 'Unsupported Connection Type', []),
-						'Only "Connection: Close" is supported'
-					));
-					return;
-				case Failure(_): req.header.fields.push(new HeaderField('connection', 'close'));
-			}
-			
-			var data:tink.io.Source = req.header.toString();
-			data = data.append(req.body);
-			
-			data.pipeTo(sink).map(function(r) {
-				switch r {
-					case AllWritten:
-						source.parse(ResponseHeader.parser()).handle(function(o) switch o {
-							case Success(parsed):
-								cb(new IncomingResponse(
-									parsed.data,
-									parsed.rest
-								));
-							case Failure(e):
-								cb(new IncomingResponse(
-									new ResponseHeader(500, 'Header parse error', []),
-									std.Std.string(e)
-								));
-						});
-						
-					default: 
+			worker.work(function() socket.connect(new sys.net.Host(req.header.host.name), port)).handle(function(_) {
+				var sink = tink.io.Sink.ofOutput('Request to ${req.header.fullUri()}', socket.output, worker);
+				var source = tink.io.Source.ofInput('Response from ${req.header.fullUri()}', socket.input, worker);
+				
+				switch req.header.byName('connection') {
+					case Success((_:String).toLowerCase() => 'close'): // ok
+					case Success(_):
 						cb(new IncomingResponse(
-							new ResponseHeader(500, 'Pipe error', []),
-							std.Std.string(r)
+							new ResponseHeader(500, 'Unsupported Connection Type', []),
+							'Only "Connection: Close" is supported'
 						));
+						return;
+					case Failure(_): req.header.fields.push(new HeaderField('connection', 'close'));
 				}
+				
+				var data:tink.io.Source = req.header.toString();
+				data = data.append(req.body);
+				
+				data.pipeTo(sink).map(function(r) {
+					switch r {
+						case AllWritten:
+							source.parse(ResponseHeader.parser()).handle(function(o) switch o {
+								case Success(parsed):
+									cb(new IncomingResponse(
+										parsed.data,
+										parsed.rest
+									));
+								case Failure(e):
+									cb(new IncomingResponse(
+										new ResponseHeader(500, 'Header parse error', []),
+										std.Std.string(e)
+									));
+							});
+							
+						default: 
+							cb(new IncomingResponse(
+								new ResponseHeader(500, 'Pipe error', []),
+								std.Std.string(r)
+							));
+					}
+				});
 			});
-			
 		});
 	}
 }
