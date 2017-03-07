@@ -8,6 +8,7 @@ import tink.http.Method;
 import tink.http.Client;
 import tink.io.IdealSource;
 import tink.url.Host;
+import tink.io.Worker;
 import tink.Url;
 
 using tink.CoreApi;
@@ -61,13 +62,13 @@ class Fetch {
 						#if (js && !nodejs) new JsSecureClient()
 						#elseif nodejs new NodeSecureClient()
 						#elseif php new SecurePhpClient()
-						#elseif sys new SecureStdClient()
+						#elseif sys new SecureSocketClient()
 						#end
 					else 
 						#if (js && !nodejs) new JsClient()
 						#elseif nodejs new NodeClient()
 						#elseif php new PhpClient()
-						#elseif sys new StdClient()
+						#elseif sys new SocketClient()
 						#end ;
 				case Local(c): new LocalContainerClient(c);
 				case Curl: secure ? new SecureCurlClient() : new CurlClient();
@@ -117,5 +118,76 @@ class CompleteResponse {
 	public function new(header, body) {
 		this.header = header;
 		this.body = body;
+	}
+}
+
+// TODO: move to tink_http
+class SecureSocketClient extends SocketClient {
+	public function new(?worker:Worker) {
+		super(worker);
+		protocol = 'https';
+	}
+}
+
+// TODO: move to tink_http
+class SocketClient implements tink.http.Client.ClientObject {
+	var worker:Worker;
+	var protocol:String = 'http';
+	public function new(?worker:Worker) {
+		this.worker = worker.ensure();
+	}
+	
+	public function request(req:OutgoingRequest):Future<IncomingResponse> {
+		
+		return Future.async(function(cb) {
+			
+			var secure = protocol == 'https';
+			var socket = 
+				if(secure)
+					#if php new php.net.SslSocket();
+					#elseif java new java.net.SslSocket();
+					#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp)))) new sys.ssl.Socket();
+					#else throw "Https is only supported with -lib hxssl";
+					#end
+				else
+					new sys.net.Socket();
+				
+			var sink = tink.io.Sink.ofOutput('Output', socket.output);
+			var source = tink.io.Source.ofInput('Input', socket.input);
+			var port = switch req.header.host.port {
+				case null: secure ? 443 : 80;
+				case v: v;
+			}
+			socket.connect(new sys.net.Host(req.header.host.name), port);
+			
+			var data:tink.io.Source = req.header.toString();
+			data = data.append(req.body);
+			data = data.append(' '); // HACK: otherwise the server won't respond?
+			
+			data.pipeTo(sink).map(function(r) {
+				switch r {
+					case AllWritten:
+						source.parse(ResponseHeader.parser()).handle(function(o) switch o {
+							case Success(parsed):
+								cb(new IncomingResponse(
+									parsed.data,
+									parsed.rest
+								));
+							case Failure(e):
+								cb(new IncomingResponse(
+									new ResponseHeader(500, 'Header parse error', []),
+									std.Std.string(e)
+								));
+						});
+						
+					default: 
+						cb(new IncomingResponse(
+							new ResponseHeader(500, 'Pipe error', []),
+							std.Std.string(r)
+						));
+				}
+			});
+			
+		});
 	}
 }

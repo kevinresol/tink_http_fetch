@@ -27,13 +27,13 @@ class RunTests {
   
   public function testGet() return testStatus('http://httpbin.org/');
   public function testSecureGet() return testStatus('https://httpbin.org/');
-  public function testPost() return testData('https://httpbin.org/post', POST);
+  public function testPost() return testData('http://httpbin.org/post', POST);
   public function testSecurePost() return testData('https://httpbin.org/post', POST);
-  public function testDelete() return testData('https://httpbin.org/delete', DELETE);
+  public function testDelete() return testData('http://httpbin.org/delete', DELETE);
   public function testSecureDelete() return testData('https://httpbin.org/delete', DELETE);
-  public function testPatch() return testData('https://httpbin.org/patch', PATCH);
+  public function testPatch() return testData('http://httpbin.org/patch', PATCH);
   public function testSecurePatch() return testData('https://httpbin.org/patch', PATCH);
-  public function testPut() return testData('https://httpbin.org/put', PUT);
+  public function testPut() return testData('http://httpbin.org/put', PUT);
   public function testSecurePut() return testData('https://httpbin.org/put', PUT);
   public function testRedirect() return testStatus('http://httpbin.org/redirect/5');
   public function testSecureRedirect() return testStatus('https://httpbin.org/redirect/5');
@@ -63,7 +63,9 @@ class RunTests {
         {name: 'content-length', value: Std.string(body.length)},
       ],
       body: body,
-    }).all().next(function(res) return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data));
+    }).all().next(function(res) {
+      return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data);
+    });
   }
   
   function objectToHeader(obj:Dynamic) {
