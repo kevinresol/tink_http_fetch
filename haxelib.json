@@ -11,8 +11,8 @@
 	"contributors": [
 		"kevinresol"
 	],
-	"releasenote": "Fix return type & use PhpClient on php",
-	"version": "0.1.1",
+	"releasenote": "Initial support of redirects",
+	"version": "0.2.0",
 	"dependencies": {
 		"tink_http": ""
 	}
