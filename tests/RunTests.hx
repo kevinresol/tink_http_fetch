@@ -4,7 +4,8 @@ import haxe.io.Bytes;
 import haxe.Json;
 import tink.unit.TestRunner;
 import tink.unit.Assert.*;
-import tink.http.Fetch.*;
+import tink.http.Fetch;
+import tink.http.Fetch.fetch;
 import tink.http.Response;
 import tink.http.Header;
 import tink.http.Method;
@@ -18,12 +19,17 @@ class RunTests {
   static function main() {
     
     TestRunner.run([
-      new RunTests()
+      new RunTests(),
+      #if php new RunTests(Php), #end
     ]).handle(function(result) travix.Logger.exit(result.errors));
     
   }
   
-  public function new() {}
+  var client:ClientType;
+  
+  public function new(?client:ClientType) {
+    this.client = client;
+  }
   
   public function testGet() return testStatus('http://httpbin.org/');
   public function testPost() return testData('http://httpbin.org/post', POST);
@@ -48,6 +54,7 @@ class RunTests {
         // {name: name, value: value},
         new HeaderField(name, value),
       ],
+      client: client,
     }).all().next(
       function(res) 
         return equals(200, res.header.statusCode) && 
@@ -57,7 +64,7 @@ class RunTests {
   #end
   
   function testStatus(url:String, status = 200) {
-    return fetch(url).map(function(res) return equals(status, res.header.statusCode));
+    return fetch(url, {client: client}).map(function(res) return equals(status, res.header.statusCode));
   }
   
   function testData(url:String, method:Method) {
@@ -71,6 +78,7 @@ class RunTests {
         new HeaderField('content-length', Std.string(body.length)),
       ],
       body: body,
+      client: client,
     }).all().next(function(res) {
       return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data);
     });

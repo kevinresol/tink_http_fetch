@@ -61,18 +61,17 @@ class Fetch {
 					if(secure)
 						#if (js && !nodejs) new JsSecureClient()
 						#elseif nodejs new NodeSecureClient()
-						#elseif php new SecurePhpClient()
 						#elseif sys new SecureSocketClient()
 						#end
 					else 
 						#if (js && !nodejs) new JsClient()
 						#elseif nodejs new NodeClient()
-						#elseif php new PhpClient()
 						#elseif sys new SocketClient()
 						#end ;
 				case Local(c): new LocalContainerClient(c);
 				case Curl: secure ? new SecureCurlClient() : new CurlClient();
-				#if (js || php) case Std: secure ? new SecureStdClient() : new StdClient(); #end
+				#if php case Php: secure ? new SecurePhpClient() : new PhpClient(); #end
+				// #if (js || php) case Std: secure ? new SecureStdClient() : new StdClient(); #end
 				#if tink_tcp case Tcp: secure ? new SecureTcpClient() : new TcpClient(); #end
 			}
 			
@@ -95,7 +94,8 @@ enum ClientType {
 	Default;
 	Local(container:tink.http.containers.LocalContainer);
 	Curl;
-	#if (js || php) Std; #end
+	#if php Php; #end
+	// #if (js || php) Std; #end
 	#if tink_tcp Tcp; #end
 }
 
@@ -118,88 +118,5 @@ class CompleteResponse {
 	public function new(header, body) {
 		this.header = header;
 		this.body = body;
-	}
-}
-
-// TODO: move to tink_http
-class SecureSocketClient extends SocketClient {
-	public function new(?worker:Worker) {
-		super(worker);
-		secure = true;
-	}
-}
-
-// TODO: move to tink_http
-class SocketClient implements tink.http.Client.ClientObject {
-	
-	var worker:Worker;
-	var secure = false;
-	
-	public function new(?worker:Worker) {
-		this.worker = worker.ensure();
-	}
-	
-	public function request(req:OutgoingRequest):Future<IncomingResponse> {
-		
-		return Future.async(function(cb) {
-			
-			var socket = 
-				if(secure)
-					#if php new php.net.SslSocket();
-					#elseif java new java.net.SslSocket();
-					#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp)))) new sys.ssl.Socket();
-					#else throw "Https is only supported with -lib hxssl";
-					#end
-				else
-					new sys.net.Socket();
-				
-			var port = switch req.header.host.port {
-				case null: secure ? 443 : 80;
-				case v: v;
-			}
-			
-			worker.work(function() socket.connect(new sys.net.Host(req.header.host.name), port)).handle(function(_) {
-				var sink = tink.io.Sink.ofOutput('Request to ${req.header.fullUri()}', socket.output, worker);
-				var source = tink.io.Source.ofInput('Response from ${req.header.fullUri()}', socket.input, worker);
-				
-				switch req.header.byName('connection') {
-					case Success((_:String).toLowerCase() => 'close'): // ok
-					case Success(_):
-						cb(new IncomingResponse(
-							new ResponseHeader(500, 'Unsupported Connection Type', []),
-							'Only "Connection: Close" is supported'
-						));
-						return;
-					case Failure(_): req.header.fields.push(new HeaderField('connection', 'close'));
-				}
-				
-				var data:tink.io.Source = req.header.toString();
-				data = data.append(req.body);
-				
-				data.pipeTo(sink).map(function(r) {
-					switch r {
-						case AllWritten:
-							source.parse(ResponseHeader.parser()).handle(function(o) switch o {
-								case Success(parsed):
-									cb(new IncomingResponse(
-										parsed.data,
-										parsed.rest
-									));
-								case Failure(e):
-									cb(new IncomingResponse(
-										new ResponseHeader(500, 'Header parse error', []),
-										std.Std.string(e)
-									));
-							});
-							
-						default: 
-							cb(new IncomingResponse(
-								new ResponseHeader(500, 'Pipe error', []),
-								std.Std.string(r)
-							));
-					}
-				});
-			});
-		});
 	}
 }
