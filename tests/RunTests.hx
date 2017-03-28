@@ -2,8 +2,9 @@ package ;
 
 import haxe.io.Bytes;
 import haxe.Json;
-import tink.unit.TestRunner;
+import tink.unit.*;
 import tink.unit.Assert.*;
+import tink.testrunner.*;
 import tink.http.Fetch;
 import tink.http.Fetch.fetch;
 import tink.http.Response;
@@ -18,10 +19,10 @@ class RunTests {
 
   static function main() {
     
-    TestRunner.run([
+    Runner.run(TestBatch.make([
       new RunTests(),
       #if php new RunTests(Php), #end
-    ]).handle(function(result) travix.Logger.exit(result.errors));
+    ])).handle(function(result) travix.Logger.exit(result.summary().failures.length));
     
   }
   
@@ -46,7 +47,7 @@ class RunTests {
   public function testSecurePut() return testData('https://httpbin.org/put', PUT);
   public function testSecureRedirect() return testStatus('https://httpbin.org/redirect/5');
   
-  public function testHeaders() {
+  public function testHeaders(buffer:AssertionBuffer) {
     var name = 'my-sample-header';
     var value = 'foobar';
     return fetch('https://httpbin.org/headers', {
@@ -56,15 +57,16 @@ class RunTests {
       ],
       client: client,
     }).all().next(
-      function(res) 
-        return equals(200, res.header.statusCode) && 
-          objectToHeader(res.body.toString().parse().headers).byName(name).flatMap(function(v) return equals(value, v))
-    );
+      function(res) {
+          buffer.assert(res.header.statusCode == 200);
+          buffer.assert(Type.enumEq(objectToHeader(res.body.toString().parse().headers).byName(name), Success(value)));
+          return buffer.done();
+      });
   }
   #end
   
   function testStatus(url:String, status = 200) {
-    return fetch(url, {client: client}).map(function(res) return equals(status, res.header.statusCode));
+    return fetch(url, {client: client}).map(function(res) return assert(res.header.statusCode == status));
   }
   
   function testData(url:String, method:Method) {
@@ -79,8 +81,11 @@ class RunTests {
       ],
       body: body,
       client: client,
-    }).all().next(function(res) {
-      return equals(200, res.header.statusCode) && equals(body, res.body.toString().parse().data);
+    }).all().next(function(res):Array<Assertion> {
+      return [
+        assert(res.header.statusCode == 200),
+        assert(res.body.toString().parse().data == body),
+      ];
     });
   }
   
