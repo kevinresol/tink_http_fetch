@@ -14,7 +14,7 @@ import tink.http.Method;
 using haxe.Json;
 using tink.CoreApi;
 
-@:timeout(10000)
+@:timeout(15000)
 class RunTests {
 
   static function main() {
@@ -66,7 +66,7 @@ class RunTests {
   #end
   
   function testStatus(url:String, status = 200) {
-    return fetch(url, {client: client}).map(function(res) return assert(res.header.statusCode == status));
+    return fetch(url, {client: client}).next(function(res) return assert(res.header.statusCode == status));
   }
   
   function testData(url:String, method:Method) {

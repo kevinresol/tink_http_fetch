@@ -6,11 +6,12 @@ import tink.http.Response;
 import tink.http.Header;
 import tink.http.Method;
 import tink.http.Client;
-import tink.io.IdealSource;
+import tink.http.clients.*;
 import tink.url.Host;
 import tink.io.Worker;
 import tink.Url;
 
+using tink.io.Source;
 using tink.CoreApi;
 
 class Fetch {
@@ -27,7 +28,7 @@ class Fetch {
 			
 			var method = GET;
 			var headers = null;
-			var body:IdealSource = Empty.instance;
+			var body:IdealSource = Source.EMPTY;
 			var type = Default;
 			
 			if(options != null) {
@@ -39,13 +40,18 @@ class Fetch {
 			
 			var client = getClient(type, url.scheme == 'https');
 			client.request(new OutgoingRequest(
-				new OutgoingRequestHeader(method, url.host, uri, headers),
+				new OutgoingRequestHeader(method, url, headers),
 				body
 			)).handle(function(res) {
-				switch res.header.statusCode {
-					case 301 | 302: fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: reconstruct body
-					// TODO: case 307 | 308: 
-					default: cb(res);
+				switch res {
+					case Success(res):
+						switch res.header.statusCode {
+							case 301 | 302: fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: reconstruct body
+							// TODO: case 307 | 308: 
+							default: cb(Success(res));
+						}
+					case Failure(e):
+						cb(Failure(e));
 				}
 			});
 		});
@@ -59,8 +65,8 @@ class Fetch {
 			var c:Client = switch type {
 				case Default:
 					if(secure)
-						#if (js && !nodejs) new JsSecureClient()
-						#elseif nodejs new NodeSecureClient()
+						#if (js && !nodejs) new SecureJsClient()
+						#elseif nodejs new SecureNodeClient()
 						#elseif sys new SecureSocketClient()
 						#end
 					else 
@@ -100,15 +106,13 @@ enum ClientType {
 }
 
 @:forward
-abstract FetchResponse(Future<IncomingResponse>) from Future<IncomingResponse> to Future<IncomingResponse> {
+abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse, Error> from Promise<IncomingResponse> to Promise<IncomingResponse> {
 	public function all():Promise<CompleteResponse> {
-		return this >> 
-			function(res:IncomingResponse) return res.body.all() >>
-			function(bytes:Bytes) return new CompleteResponse(res.header, bytes);
+		var res = null;
+		return this
+			.next(function(r) {res = r; return r.body.all();})
+			.next(function(bytes) return new CompleteResponse(res.header, bytes));
 	}
-	
-	public function asFuture():Future<IncomingResponse>
-		return this;
 }
 
 class CompleteResponse {
