@@ -10,6 +10,7 @@ import tink.http.clients.*;
 import tink.url.Host;
 import tink.io.Worker;
 import tink.Url;
+import tink.Chunk;
 
 using tink.io.Source;
 using tink.CoreApi;
@@ -111,13 +112,13 @@ abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse
 		var res = null;
 		return this
 			.next(function(r) {res = r; return r.body.all();})
-			.next(function(bytes) return new CompleteResponse(res.header, bytes));
+			.next(function(chunk) return new CompleteResponse(res.header, chunk));
 	}
 }
 
 class CompleteResponse {
 	public var header:ResponseHeader;
-	public var body:Bytes;
+	public var body:Chunk;
 	
 	public function new(header, body) {
 		this.header = header;
