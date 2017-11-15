@@ -107,7 +107,7 @@ enum ClientType {
 }
 
 @:forward
-abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse, Error> from Promise<IncomingResponse> to Promise<IncomingResponse> {
+abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse, Error> to Surprise<IncomingResponse, Error> from Promise<IncomingResponse> to Promise<IncomingResponse> {
 	public function all():Promise<CompleteResponse> {
 		var res = null;
 		return this
