@@ -14,5 +14,6 @@ typedef FetchOptions = {
 	?headers:Array<HeaderField>,
 	?body:IdealSource,
 	?client:ClientType,
+	?followRedirect:Bool, // default: true
 }
 ```
