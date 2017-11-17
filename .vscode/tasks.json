@@ -14,5 +14,9 @@
             "severity": 6,
             "message": 7
         }
+    },
+    "group": {
+        "kind": "build",
+        "isDefault": true
     }
 }
