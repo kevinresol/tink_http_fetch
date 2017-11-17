@@ -31,12 +31,14 @@ class Fetch {
 			var headers = null;
 			var body:IdealSource = Source.EMPTY;
 			var type = Default;
+			var followRedirect = true;
 			
 			if(options != null) {
 				if(options.method != null) method = options.method;
 				if(options.headers != null) headers = options.headers;
 				if(options.body != null) body = options.body;
 				if(options.client != null) type = options.client; 
+				if(options.followRedirect == false) followRedirect = false; 
 			}
 			
 			var client = getClient(type, url.scheme == 'https');
@@ -47,7 +49,7 @@ class Fetch {
 				switch res {
 					case Success(res):
 						switch res.header.statusCode {
-							case 301 | 302: fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: reconstruct body
+							case 301 | 302 if(followRedirect): fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: 1. reconstruct body; 2. don't use sure(), it will crash
 							// TODO: case 307 | 308: 
 							default: cb(Success(res));
 						}
@@ -95,6 +97,7 @@ typedef FetchOptions = {
 	?headers:Array<HeaderField>,
 	?body:IdealSource,
 	?client:ClientType,
+	?followRedirect:Bool,
 }
 
 enum ClientType {
@@ -116,12 +119,4 @@ abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse
 	}
 }
 
-class CompleteResponse {
-	public var header:ResponseHeader;
-	public var body:Chunk;
-	
-	public function new(header, body) {
-		this.header = header;
-		this.body = body;
-	}
-}
+typedef CompleteResponse = Message<ResponseHeader, Chunk>;
