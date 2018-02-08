@@ -11,6 +11,7 @@ import tink.url.Host;
 import tink.io.Worker;
 import tink.Url;
 import tink.Chunk;
+import tink.Anon.*;
 
 using tink.io.Source;
 using tink.CoreApi;
@@ -49,8 +50,10 @@ class Fetch {
 				switch res {
 					case Success(res):
 						switch res.header.statusCode {
-							case 301 | 302 if(followRedirect): fetch(url.resolve(res.header.byName('location').sure()), options).handle(cb); // TODO: 1. reconstruct body; 2. don't use sure(), it will crash
-							// TODO: case 307 | 308: 
+							case code = 301 | 302 | 303 | 307 | 308 if(followRedirect): 
+								Promise.lift(res.header.byName('location'))
+									.next(function(location) return fetch(url.resolve(location), code == 303 ? merge(options, method = GET) : options))
+									.handle(cb);
 							default: cb(Success(res));
 						}
 					case Failure(e):
