@@ -115,10 +115,11 @@ enum ClientType {
 @:forward
 abstract FetchResponse(Promise<IncomingResponse>) from Surprise<IncomingResponse, Error> to Surprise<IncomingResponse, Error> from Promise<IncomingResponse> to Promise<IncomingResponse> {
 	public function all():Promise<CompleteResponse> {
-		var res = null;
 		return this
-			.next(function(r) {res = r; return r.body.all();})
-			.next(function(chunk) return new CompleteResponse(res.header, chunk));
+			.next(function(r) {
+				return r.body.all()
+					.next(function(chunk) return new CompleteResponse(r.header, chunk));
+			});
 	}
 }
 
