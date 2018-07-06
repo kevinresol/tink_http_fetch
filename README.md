@@ -1,4 +1,4 @@
-# tink_http_fetch
+# Tinkerbell HTTP Fetch [![Build Status](https://travis-ci.org/kevinresol/tink_http_fetch.svg?branch=master)](https://travis-ci.org/kevinresol/tink_http_fetch)
 
 A fetch-like API based on tink_http
 
