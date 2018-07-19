@@ -86,7 +86,10 @@ class Fetch {
 				#if php case Php: secure ? new SecurePhpClient() : new PhpClient(); #end
 				// #if (js || php) case Std: secure ? new SecureStdClient() : new StdClient(); #end
 				#if tink_tcp case Tcp: secure ? new SecureTcpClient() : new TcpClient(); #end
+				#if flash case Flash: secure ? new SecureFlashClient() : new FlashClient(); #end
+				#if openfl case OpenFl: secure ? new SecureFlashClient() : new FlashClient(); #end
 			}
+			
 			
 			cache.set(type, c);
 		}
@@ -111,6 +114,8 @@ enum ClientType {
 	StdLib;
 	#if php Php; #end
 	#if tink_tcp Tcp; #end
+	#if flash Flash; #end
+	#if openfl OpenFl; #end
 }
 
 @:forward
